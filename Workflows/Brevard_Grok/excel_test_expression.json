@@ -1,0 +1,40 @@
+{
+  "name": "Excel Test - All Formats",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "trigger",
+      "name": "When clicking 'Execute'"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { test: \"data\" } }];",
+        "functionName": "data"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "id": "data",
+      "name": "Data"
+    },
+    {
+      "parameters": {
+        "filePath": "{{ $json.filePath }}",
+        "operation": "write",
+        "sheetName": "Sheet1"
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "id": "excelWrite",
+      "name": "Write Excel"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute'": { "main": [[{ "node": "Data", "type": "main", "index": 0 }]] },
+    "Data": { "main": [[{ "node": "Write Excel", "type": "main", "index": 0 }]] }
+  }
+}

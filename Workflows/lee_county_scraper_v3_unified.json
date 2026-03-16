@@ -1,0 +1,222 @@
+{
+  "name": "Lee County RealTDM Scraper (Unified v3)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "node-1",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "saleDate",
+              "value": "02/24/2026"
+            }
+          ]
+        }
+      },
+      "id": "node-2",
+      "name": "Set Search Params",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://lee.realtdm.com/public/cases/list",
+        "options": {}
+      },
+      "id": "node-3",
+      "name": "Establish Session",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://lee.realtdm.com/public/cases/list",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/x-www-form-urlencoded"
+            },
+            {
+              "name": "Origin",
+              "value": "https://lee.realtdm.com"
+            },
+            {
+              "name": "Referer",
+              "value": "https://lee.realtdm.com/public/cases/list"
+            },
+            {
+              "name": "Upgrade-Insecure-Requests",
+              "value": "1"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "form-urlencoded",
+        "specifyBody": "key-value",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "filterPageNumber",
+              "value": "1"
+            },
+            {
+              "name": "filterCasesPerPage",
+              "value": "50"
+            },
+            {
+              "name": "filterFiltered",
+              "value": "1"
+            },
+            {
+              "name": "sectionRouteCode",
+              "value": ""
+            },
+            {
+              "name": "isPublic",
+              "value": "1"
+            },
+            {
+              "name": "filterCaseStatus",
+              "value": "144,733,734,150,152,151,146,145,148,444,443"
+            },
+            {
+              "name": "filterSaleDateStart",
+              "value": "={{ $node[\"Set Search Params\"].json[\"saleDate\"] }}"
+            },
+            {
+              "name": "filterSaleDateStop",
+              "value": "={{ $node[\"Set Search Params\"].json[\"saleDate\"] }}"
+            },
+            {
+              "name": "filterBalanceType",
+              "value": "surplusWithoutClaim"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-4",
+      "name": "Get Case List",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html = $json.data || $json.text || (typeof $json === 'string' ? $json : JSON.stringify($json));\nconst cases = [];\n\nconst rowRegex = /<td class=\"case-check[^\"]*\" data-caseid=\"(\\d+)\">.*?value=\"([^\"]+)\"/gs;\nconst statusRegex = /<td class=\"text-left\">([^<]+)<\\/td>/gs;\n\nlet match;\nconst rows = [];\nwhile ((match = rowRegex.exec(html)) !== null) {\n  rows.push({ internalId: match[1], combined: match[2] });\n}\n\nconst statuses = [];\nwhile ((match = statusRegex.exec(html)) !== null) {\n  statuses.push(match[1].trim());\n}\n\nfor (let i = 0; i < rows.length; i++) {\n  const status = statuses[i] || 'N/A';\n  if (status.toLowerCase() === 'status') continue;\n\n  const parts = rows[i].combined.split('|');\n  cases.push({\n    json: {\n      caseId: parts[0],\n      caseNumber: parts[1] || 'N/A',\n      status: status,\n      internalId: rows[i].internalId\n    }\n  });\n}\n\nreturn cases;"
+      },
+      "id": "node-5",
+      "name": "Extract Cases",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cases = items.map(i => i.json);\nconst date = $node[\"Set Search Params\"].json[\"saleDate\"];\nlet md = `# Lee County Surplus Cases\\n\\n**Date:** ${date}\\n**Total:** ${cases.length}\\n\\n| Case ID | Case # | Status |\\n|--------|--------|--------|\\n`;\ncases.forEach(c => {\n  md += `| ${c.caseId} | ${c.caseNumber} | ${c.status} |\\n`;\n});\nreturn [{ json: { markdown: md, totalResults: cases.length } }];"
+      },
+      "id": "node-6",
+      "name": "Prepare Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Search Params",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Search Params": {
+      "main": [
+        [
+          {
+            "node": "Establish Session",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Establish Session": {
+      "main": [
+        [
+          {
+            "node": "Get Case List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Case List": {
+      "main": [
+        [
+          {
+            "node": "Extract Cases",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Cases": {
+      "main": [
+        [
+          {
+            "node": "Prepare Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {}
+}

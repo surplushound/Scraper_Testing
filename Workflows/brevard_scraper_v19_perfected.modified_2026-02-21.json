@@ -1,0 +1,508 @@
+{
+  "name": "Brevard Scraper v19 - Firecrawl Automated (Perfected)",
+  "nodes": [
+    {
+      "parameters": {
+        "availableInChat": true,
+        "agentName": "Brevard Surplus Scraper v18",
+        "options": {
+          "allowFileUploads": false,
+          "welcomeMessage": "\ud83e\udd16 Brevard Scraper v18 - FULLY AUTOMATED\n\nThis version uses Firecrawl browser automation to:\n1. Navigate to the cases page\n2. Set date filters\n3. Select 'Surplus' balance type\n4. Submit and scrape results\n\n**No manual cookies required!** \u2705",
+          "promptStarters": {
+            "values": [
+              {
+                "label": "\u25b6\ufe0f Run Automated Scraper",
+                "prompt": "Scrape surplus cases from Brevard County using browser automation."
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -928,
+        -48
+      ],
+      "id": "chat-trigger-v18",
+      "name": "When chat message received",
+      "webhookId": "v18-brevard-automated"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput || \"Scrape surplus cases now\" }}",
+        "options": {
+          "systemMessage": "You are a Brevard County surplus case extraction agent using browser automation.\n\n**STEP 1:** Call the 'Brevard Firecrawl Scraper' tool with URL: https://brevard.realtdm.com/public/cases/list\n\nThis tool will automatically:\n- Navigate to the page\n- Wait for form to load\n- Set sale date start to 12/02/2025\n- Set sale date stop to 02/08/2026\n- Select 'Surplus' from balance type dropdown\n- Click submit button\n- Wait for results\n- Scrape the page content\n\n**STEP 2:** Parse the returned markdown/HTML for case data. Look for:\n- Case Number (e.g., 250XXX)\n- Owner Name\n- Case Status (look for 'ACTIVE')\n- Surplus Amount (dollar amounts)\n- Property Address\n- Parcel Number\n\n**STEP 3:** Find cases matching ALL criteria:\n- Status contains 'ACTIVE'\n- Surplus >= $25,000\n- Owner is an INDIVIDUAL (REJECT if name contains: LLC, INC, CORP, TRUST, BANK, EQUITY, CAPITAL, COUNTY, CITY, STATE, FEDERAL)\n\n**STEP 4:** For the FIRST qualifying case, extract these fields and call 'Append row in sheet':\n- Case_Number\n- Case_ID\n- Owner_Name\n- Property_ID\n- Site_Address\n- parcel_number\n- owners_address\n- surplus_amount\n\n**IMPORTANT:** This is fully automated - no manual cookies needed!\n\n**OUTPUT FORMAT (STRICT):** Respond with ONLY valid JSON (no markdown, no commentary) for the first qualifying case:\n{\n  \"Case_Number\":\"\",\n  \"Case_ID\":\"\",\n  \"Owner_Name\":\"\",\n  \"Property_ID\":\"\",\n  \"Site_Address\":\"\",\n  \"parcel_number\":\"\",\n  \"owners_address\":\"\",\n  \"surplus_amount\":\"\"\n}\nIf no qualifying case found, respond with: {\"found\":false}\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -400,
+        -80
+      ],
+      "id": "ai-agent-v18",
+      "name": "AI_Agent"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $execution.id }}",
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        -400,
+        49
+      ],
+      "id": "memory-v18",
+      "name": "Simple Memory1",
+      "retryOnFail": true,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Browser-based scraper for Brevard County surplus cases. Automatically handles session, sets filters, and extracts data. Parameter: 'url' (default: https://brevard.realtdm.com/public/cases/list). Returns page content with case data.",
+        "operation": "scrape",
+        "url": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('url', 'https://brevard.realtdm.com/public/cases/list', 'string') }}",
+        "scrapeOptions": {
+          "options": {
+            "onlyMainContent": false,
+            "actions": [
+              {
+                "type": "wait",
+                "milliseconds": 3000
+              },
+              {
+                "type": "scroll",
+                "direction": "down",
+                "amount": 200
+              },
+              {
+                "type": "wait",
+                "milliseconds": 1000
+              },
+              {
+                "type": "write",
+                "selector": "#filterSaleDateStart",
+                "text": "12/02/2025"
+              },
+              {
+                "type": "wait",
+                "milliseconds": 500
+              },
+              {
+                "type": "write",
+                "selector": "#filterSaleDateStop",
+                "text": "02/08/2026"
+              },
+              {
+                "type": "wait",
+                "milliseconds": 500
+              },
+              {
+                "type": "click",
+                "selector": "#filterBalanceType"
+              },
+              {
+                "type": "wait",
+                "milliseconds": 500
+              },
+              {
+                "type": "click",
+                "selector": "#filterBalanceType option[value='surplus']"
+              },
+              {
+                "type": "wait",
+                "milliseconds": 500
+              },
+              {
+                "type": "click",
+                "selector": ".filters-submit"
+              },
+              {
+                "type": "wait",
+                "milliseconds": 8000
+              },
+              {
+                "type": "screenshot"
+              }
+            ],
+            "mobile": false,
+            "waitFor": 5000,
+            "timeout": 90000
+          }
+        }
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [
+        160,
+        240
+      ],
+      "id": "firecrawl-v18",
+      "name": "Brevard Firecrawl Scraper",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "wkPHs69agFP6Hcun",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        -528,
+        210
+      ],
+      "id": "openai-model-v18",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "66o4dpsXnpJdVcFv",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI Agent's strict JSON output\nconst raw = $json.output ?? $json.text ?? $json.response ?? '';\nlet parsed;\ntry {\n  parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\n} catch (e) {\n  throw new Error(`AI Agent did not return valid JSON. Raw output: ${raw}`);\n}\nreturn [{ json: parsed }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -80,
+        -80
+      ],
+      "id": "parse-agent-json-v19",
+      "name": "Parse Agent JSON"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.found === false }}",
+              "operation": "isFalse"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        120,
+        -80
+      ],
+      "id": "if-found-v19",
+      "name": "IF Found"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "1y07nKOX5CU4KNg6RSwrjuQsbVAcRNLVhB0f5ImiNTSM",
+        "sheetName": "Brevard_With_Eval_Results",
+        "options": {},
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Case_Number": "={{ $json.Case_Number || '' }}",
+            "Case_ID": "={{ $json.Case_ID || '' }}",
+            "Owner_Name": "={{ $json.Owner_Name || '' }}",
+            "Property_ID": "={{ $json.Property_ID || '' }}",
+            "Site_Address": "={{ $json.Site_Address || '' }}",
+            "parcel_number": "={{ $json.parcel_number || '' }}",
+            "owners_address": "={{ $json.owners_address || '' }}",
+            "surplus_amount": "={{ $json.surplus_amount || '' }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        320,
+        -80
+      ],
+      "id": "gsheets-append-v19",
+      "name": "Google Sheets - Append Row",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wPX9ZW3ymBkHw9OI",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+    ,
+    {
+      "parameters": {
+        "filePath": "/data/Desktop/Antigravity/Brevard_With_Eval_Results.xlsx",
+        "operation": "read",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [160, 520],
+      "id": "readwritefile-local-1",
+      "name": "Read/Write File - Local Excel"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-80, 520],
+      "id": "manual-trigger-readexcel",
+      "name": "Manual Trigger - Read Excel"
+    }
+    ,
+    {
+      "parameters": {
+        "filePath": "/data/Desktop/Antigravity/firecrawl_urls.txt",
+        "operation": "read",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [120, 520],
+      "id": "read-urls-file-1",
+      "name": "Read URLs File"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse file text into items\nconst item = items[0];\nlet txt = '' ;\nif (item.binary && item.binary.data) {\n  txt = Buffer.from(item.binary.data, 'base64').toString('utf8');\n} else if (item.json && (item.json.data || item.json.content)) {\n  txt = item.json.data || item.json.content;\n} else if (item.json && item.json.filePath) {\n  txt = item.json.filePath;\n}\nconst lines = txt.split(/\\r?\\n/).map(l => l.trim()).filter(Boolean);\nreturn lines.map(u => ({ json: { url: u } }));"
+      },
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [320, 520],
+      "id": "parse-urls-1",
+      "name": "Parse URLs"
+    },
+    {
+      "parameters": {
+        "batchSize": 1
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [520, 520],
+      "id": "split-batches-1",
+      "name": "SplitInBatches"
+    },
+    {
+      "parameters": {
+        "operation": "map",
+        "url": "={{ $json.url }}",
+        "options": {
+          "limit": 50,
+          "sitemap": "include"
+        }
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [720, 520],
+      "id": "firecrawl-map-1",
+      "name": "Firecrawl Map",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "wkPHs69agFP6Hcun",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "1y07nKOX5CU4KNg6RSwrjuQsbVAcRNLVhB0f5ImiNTSM",
+        "sheetName": "firecrawl_map_responses",
+        "options": {},
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "URL": "={{ $json.url }}",
+            "status": "={{ $json.success ? 'success' : 'failed' }}",
+            "links_count": "={{ $json.links ? $json.links.length : 0 }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [920, 520],
+      "id": "gsheets-log-map-1",
+      "name": "Google Sheets - Log Map",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "wPX9ZW3ymBkHw9OI",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI_Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory1": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI_Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Brevard Firecrawl Scraper": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI_Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI_Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI_Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Agent JSON": {
+      "main": [
+        [
+          {
+            "node": "IF Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Found": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Append Row",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+    ,
+    "Manual Trigger - Read Excel": {
+      "main": [
+        [
+          {
+            "node": "Read/Write File - Local Excel",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Read URLs File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read URLs File": {
+      "main": [
+        [
+          {
+            "node": "Parse URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse URLs": {
+      "main": [
+        [
+          {
+            "node": "SplitInBatches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SplitInBatches": {
+      "main": [
+        [
+          {
+            "node": "Firecrawl Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firecrawl Map": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets - Log Map",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "v19-firecrawl-automated-perfected",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5f2bf235583d11f233dcf8a92249c4a4cb903ae37e1202eaadf3e4b34f605541"
+  },
+  "id": "brevard-scraper-v19",
+  "tags": []
+}

@@ -1,0 +1,74 @@
+{
+  "name": "Brevard Scraper v19 - Firecrawl Automated (Test)",
+  "nodes": [
+    {
+      "parameters": {
+        "availableInChat": true,
+        "agentName": "Brevard Surplus Scraper v18",
+        "options": {
+          "allowFileUploads": false,
+          "welcomeMessage": "Test copy of v19 for troubleshooting",
+          "promptStarters": {
+            "values": [
+              {
+                "label": "\u25b6\ufe0f Run Automated Scraper (Test)",
+                "prompt": "Scrape surplus cases from Brevard County using browser automation."
+              }
+            ]
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1,
+      "position": [
+        -928,
+        -48
+      ],
+      "id": "chat-trigger-v18-test",
+      "name": "When chat message received (test)",
+      "webhookId": "v18-brevard-automated-test"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.chatInput || \"Scrape surplus cases now\" }}",
+        "options": {
+          "systemMessage": "Test agent for debugging"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        -400,
+        -80
+      ],
+      "id": "ai-agent-v18-test",
+      "name": "AI_Agent_Test"
+    }
+  ],
+  "connections": {
+    "When chat message received (test)": {
+      "main": [
+        [
+          {
+            "node": "AI_Agent_Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "v19-firecrawl-test",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "brevard-scraper-v19-test",
+  "tags": []
+}

@@ -1,0 +1,55 @@
+{
+  "name": "Excel Test - Read and Write",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "trigger",
+      "name": "When clicking 'Execute'"
+    },
+    {
+      "parameters": {
+        "filePath": "D:\\share\\.vscode\\Brevard_With_Eval_Results.xlsx",
+        "operation": "read",
+        "sheetName": "Sheet1",
+        "options": { "firstRowAsHeader": true }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "id": "excelRead",
+      "name": "Read Excel"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple test - just pass through data\nconsole.log('Read items:', items.length);\nreturn items;",
+        "functionName": "testPass"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300],
+      "id": "test",
+      "name": "Test Pass"
+    },
+    {
+      "parameters": {
+        "filePath": "D:\\share\\.vscode\\Brevard_With_Eval_Results.xlsx",
+        "operation": "write",
+        "sheetName": "Sheet1",
+        "options": { "firstRowAsHeader": true }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "id": "excelWrite",
+      "name": "Write Excel"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute'": { "main": [[{ "node": "Read Excel", "type": "main", "index": 0 }]] },
+    "Read Excel": { "main": [[{ "node": "Test Pass", "type": "main", "index": 0 }]] },
+    "Test Pass": { "main": [[{ "node": "Write Excel", "type": "main", "index": 0 }]] }
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "name": "Brevard Scraper v4 - Firecrawl Extract + Excel",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-800, 300],
+      "id": "trigger",
+      "name": "When clicking 'Execute'"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.firecrawl.dev/v1/extract",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer fc-254bf0cc46604e939a9c510f834f242a" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "body": "{\"urls\":[\"https://brevard.realtdm.com/public/cases/list\"],\"prompt\":\"Extract all surplus cases with sale date 02/19/2026, status ACTIVE, surplus >= $25,000, owner INDIVIDUAL. Return JSON with Case Number, Parcel Number, Case Parties, Property Address, Surplus Remaining\"}",
+        "options": { "timeout": 120000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-600, 300],
+      "id": "firecrawl",
+      "name": "Firecrawl Extract"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.data;\n\nif (!data) {\n  throw new Error('No data from Firecrawl extract');\n}\n\nconsole.log('Extracted data:', JSON.stringify(data).substring(0, 500));\n\nlet parsed = { found: false, cases: [] };\n\nif (Array.isArray(data)) {\n  parsed = { found: true, cases: data };\n} else if (data.cases) {\n  parsed = data;\n} else if (data.found !== undefined) {\n  parsed = data;\n} else {\n  parsed = { found: true, cases: [data] };\n}\n\nif (!parsed.found || !parsed.cases?.length) return [{ json: { found: false } }];\nreturn parsed.cases.map(c => ({ json: { ...c, found: true } }));",
+        "functionName": "parseExtract"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 300],
+      "id": "parse",
+      "name": "Parse Extract"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.found }}", "operation": "isFalse" }]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "id": "if",
+      "name": "Check"
+    },
+    {
+      "parameters": { "jsCode": "return [{ json: { message: 'No cases' } }];" },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 150],
+      "id": "none",
+      "name": "No Cases"
+    },
+    {
+      "parameters": {
+        "filePath": "D:/share/.vscode/Brevard_With_Eval_Results.xlsx",
+        "operation": "read",
+        "sheetName": "Sheet1",
+        "options": { "firstRowAsHeader": true }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [400, 450],
+      "id": "excelRead",
+      "name": "Read Excel"
+    },
+    {
+      "parameters": {
+        "jsCode": "const newCases = items[0].json.found ? items.slice(1) : [];\nconst existing = items[1]?.json?.data || items[1]?.json || [];\nconst all = [...(Array.isArray(existing) ? existing : []), ...newCases];\nreturn all.map(r => ({ json: r }));",
+        "functionName": "combine"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "id": "combine",
+      "name": "Combine"
+    },
+    {
+      "parameters": {
+        "filePath": "D:/share/.vscode/Brevard_With_Eval_Results.xlsx",
+        "operation": "write",
+        "sheetName": "Sheet1",
+        "options": { "firstRowAsHeader": true }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [800, 300],
+      "id": "excelWrite",
+      "name": "Write Excel"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute'": { "main": [[{ "node": "Firecrawl Extract", "type": "main", "index": 0 }]] },
+    "Firecrawl Extract": { "main": [[{ "node": "Parse Extract", "type": "main", "index": 0 }]] },
+    "Parse Extract": { "main": [[{ "node": "Check", "type": "main", "index": 0 }]] },
+    "Check": { "main": [[{ "node": "No Cases", "type": "main", "index": 0 }], [{ "node": "Read Excel", "type": "main", "index": 0 }]] },
+    "No Cases": { "main": [] },
+    "Read Excel": { "main": [[{ "node": "Combine", "type": "main", "index": 0 }]] },
+    "Combine": { "main": [[{ "node": "Write Excel", "type": "main", "index": 0 }]] }
+  }
+}

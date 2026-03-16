@@ -1,0 +1,161 @@
+{
+  "name": "Brevard Scraper v5 - Firecrawl + Groq + Excel",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [-800, 300],
+      "id": "trigger",
+      "name": "When clicking 'Execute'"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "https://brevard.realtdm.com/public/cases/list",
+        "scrapeOptions": {
+          "options": {
+            "onlyMainContent": false,
+            "skipImages": true,
+            "actions": [
+              { "type": "wait", "milliseconds": 8000 },
+              { "type": "click", "selector": ".btn-hide-disclaimer", "optional": true },
+              { "type": "wait", "milliseconds": 2000 },
+              { "type": "write", "selector": "#filterSaleDateStart", "text": "02/19/2026" },
+              { "type": "write", "selector": "#filterSaleDateStop", "text": "02/19/2026" },
+              { "type": "select", "selector": "#filterBalanceType", "value": "surplus" },
+              { "type": "wait", "milliseconds": 1000 },
+              { "type": "click", "selector": ".filters-submit" },
+              { "type": "wait", "milliseconds": 15000 },
+              { "type": "scroll", "direction": "down", "amount": 500 },
+              { "type": "wait", "milliseconds": 3000 }
+            ],
+            "mobile": false,
+            "waitFor": 15000,
+            "timeout": 300000
+          }
+        }
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawl",
+      "typeVersion": 1,
+      "position": [-600, 300],
+      "id": "firecrawl",
+      "name": "Firecrawl"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json.data || {};\nconst markdown = data.markdown || data.text || '';\n\nconsole.log('Content length:', markdown.length);\n\nif (!markdown || markdown.length < 100) {\n  throw new Error('No content from Firecrawl');\n}\n\nconst prompt = `Extract from Brevard surplus case list:\\n\\n${markdown.substring(0, 15000)}\\n\\nFind ALL cases with:\\n- Status: ACTIVE\\n- Surplus >= $25,000\\n- Owner: INDIVIDUAL (no LLC, INC, CORP, TRUST, BANK)\\n\\nExtract these fields:\\n- Case Number\\n- Parcel Number\\n- Case Parties\\n- Property Address\\n- Surplus Remaining\\n\\nOutput JSON:\\n{\"found\":true,\"cases\":[{\"Case Number\":\"\",\"Parcel Number\":\"\",\"Case Parties\":\"\",\"Property Address\":\"\",\"Surplus Remaining\":\"\"}]}\\nIf none: {\"found\":false,\"cases\":[]}`;\n\nreturn { json: { message: prompt } };",
+        "functionName": "prepPrompt"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-400, 300],
+      "id": "prep",
+      "name": "Prepare Prompt"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "Bearer gsk_j6wi1f9fPvTACGx9WLjpWGdyb3FYxgj3sLs6CVcEXsTTSZzfYUAoE" },
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            { "name": "model", "value": "llama-3.1-70b-versatile" },
+            { "name": "messages", "value": "[{\"role\":\"user\",\"content\":\"{{ $json.message }}\"}]" }
+          ]
+        },
+        "options": { "timeout": 90000 }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-200, 300],
+      "id": "groq",
+      "name": "Groq"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.choices?.[0]?.message?.content || '';\nlet parsed = { found: false, cases: [] };\n\ntry {\n  const jsonMatch = raw.match(/```json\\n?([\\s\\S]*?)\\n?```/) || raw.match(/\\{[\\s\\S]*\\}/);\n  if (jsonMatch) parsed = JSON.parse(jsonMatch[1] || jsonMatch[0]);\n} catch (e) { }\n\nconsole.log('Parsed:', JSON.stringify(parsed));\n\nif (!parsed.found || !parsed.cases?.length) return [{ json: { found: false } }];\nreturn parsed.cases.map(c => ({ json: { ...c, found: true } }));",
+        "functionName": "parseResponse"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "id": "parse",
+      "name": "Parse"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{ "value1": "={{ $json.found }}", "operation": "isFalse" }]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "id": "if",
+      "name": "Check"
+    },
+    {
+      "parameters": { "jsCode": "return [{ json: { message: 'No cases found' } }];" },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 150],
+      "id": "none",
+      "name": "No Cases"
+    },
+    {
+      "parameters": {
+        "filePath": "D:/share/.vscode/Brevard_With_Eval_Results.xlsx",
+        "operation": "read",
+        "sheetName": "Sheet1",
+        "options": { "firstRowAsHeader": true }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [400, 450],
+      "id": "excelRead",
+      "name": "Read Excel"
+    },
+    {
+      "parameters": {
+        "jsCode": "const newCases = items[0].json.found ? items.slice(1) : [];\nconst existing = items[1]?.json?.data || items[1]?.json || [];\nconst all = [...(Array.isArray(existing) ? existing : []), ...newCases];\nreturn all.map(r => ({ json: r }));",
+        "functionName": "combine"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "id": "combine",
+      "name": "Combine"
+    },
+    {
+      "parameters": {
+        "filePath": "D:/share/.vscode/Brevard_With_Eval_Results.xlsx",
+        "operation": "write",
+        "sheetName": "Sheet1",
+        "options": { "firstRowAsHeader": true }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [800, 300],
+      "id": "excelWrite",
+      "name": "Write Excel"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute'": { "main": [[{ "node": "Firecrawl", "type": "main", "index": 0 }]] },
+    "Firecrawl": { "main": [[{ "node": "Prepare Prompt", "type": "main", "index": 0 }]] },
+    "Prepare Prompt": { "main": [[{ "node": "Groq", "type": "main", "index": 0 }]] },
+    "Groq": { "main": [[{ "node": "Parse", "type": "main", "index": 0 }]] },
+    "Parse": { "main": [[{ "node": "Check", "type": "main", "index": 0 }]] },
+    "Check": { "main": [[{ "node": "No Cases", "type": "main", "index": 0 }], [{ "node": "Read Excel", "type": "main", "index": 0 }]] },
+    "No Cases": { "main": [] },
+    "Read Excel": { "main": [[{ "node": "Combine", "type": "main", "index": 0 }]] },
+    "Combine": { "main": [[{ "node": "Write Excel", "type": "main", "index": 0 }]] }
+  }
+}

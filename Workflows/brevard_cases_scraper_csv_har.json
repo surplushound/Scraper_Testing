@@ -1,0 +1,27 @@
+{
+  "name": "Brevard HAR CSV Scraper - Test",
+  "nodes": [
+    {"parameters": {"triggerMode": "manual"}, "id": 1, "name": "Start", "type": "n8n-nodes-base.triggerManual", "typeVersion": 1, "position": [200, 300] },
+    {"parameters": {"functionCode": "// Init\nconst run_id = 'HAR_' + Date.now();\nreturn [{ json: { run_id, domain: 'brevard.realtdm.com', scrape_date: '2026-02-19', start_time: new Date().toISOString() } }];"}, "id": 2, "name": "Init Run", "type": "n8n-nodes-base.function", "typeVersion": 1, "position": [400, 300] },
+    {"parameters": {"requestMethod": "GET", "url": "https://brevard.realtdm.com/public/cases/lists/detail", "responseFormat": "string", "headers": [{"name": "User-Agent", "value": "YOUR_USER_AGENT"}, {"name": "Cookie", "value": "YOUR_COOKIE"}]}, "id": 3, "name": "Get List Page", "type": "n8n-nodes-base.httpRequest", "typeVersion": 1, "position": [700, 300] },
+    {"parameters": {"fieldToExtract": "html", "cssSelector": "YOUR_LIST_LINK_SELECTOR", "dataPropertyName": "caseUrls"}, "id": 4, "name": "Extract Case URLs", "type": "n8n-nodes-base.htmlExtract", "typeVersion": 1, "position": [1000, 300] },
+    {"parameters": {"mode": "DEFAULT", "range": [ null ], "batchSize": 1}, "id": 5, "name": "Split Case URLs", "type": "n8n-nodes-base.splitInBatches", "typeVersion": 1, "position": [1250, 300] },
+    {"parameters": {"url": "={{$json[\"caseUrl\"]}}", "requestMethod": "GET", "responseFormat": "string", "headers": [{"name": "User-Agent", "value": "YOUR_USER_AGENT"}, {"name": "Cookie", "value": "YOUR_COOKIE"}]}, "id": 6, "name": "Get Case Detail", "type": "n8n-nodes-base.httpRequest", "typeVersion": 1, "position": [1550, 300] },
+    {"parameters": {"fieldToExtract": "html", "cssSelector": "YOUR_CASE_NUMBER_SELECTOR", "dataPropertyName": "case_number"}, "id": 7, "name": "Extract Case Number", "type": "n8n-nodes-base.htmlExtract", "typeVersion": 1, "position": [1850, 240] },
+    {"parameters": {"fieldToExtract": "html", "cssSelector": "YOUR_TITLE_SELECTOR", "dataPropertyName": "title"}, "id": 8, "name": "Extract Title", "type": "n8n-nodes-base.htmlExtract", "typeVersion": 1, "position": [1850, 300] },
+    {"parameters": {"values": {"string": [{"name": "run_id", "value": "={{$json[\"run_id\"]}}"}]}}, "id": 9, "name": "Normalize Data (placeholder)", "type": "n8n-nodes-base.set", "typeVersion": 1, "position": [2150, 300] },
+    {"parameters": {"path": "D:\\share\\brevard_csv\\runs.csv", "content": "run_id,domain,scrape_date,start_time,end_time,row_count,errors\n"}, "id": 10, "name": "Append Runs (CSV)", "type": "n8n-nodes-base.writeBinaryFile", "typeVersion": 1, "position": [2450, 200] },
+    {"parameters": {"path": "D:\\share\\brevard_csv\\cases.csv", "content": "run_id,case_number,title,parties,street_address,city,state,property_address,surplus_remaining,actual_owner,actual_surplus,scraped_at\n"}, "id": 11, "name": "Append Cases (CSV)", "type": "n8n-nodes-base.writeBinaryFile", "typeVersion": 1, "position": [2450, 320] },
+    {"parameters": {"path": "D:\\share\\brevard_csv\\notes.csv", "content": "run_id,case_number,node,timestamp,status,detail\n"}, "id": 12, "name": "Append Notes (CSV)", "type": "n8n-nodes-base.writeBinaryFile", "typeVersion": 1, "position": [2450, 440] }
+  ],
+  "connections": {
+    "Start": { "main": [["Init Run"]] },
+    "Init Run": { "main": [["Get List Page"]] },
+    "Get List Page": { "main": [["Extract Case URLs"]] },
+    "Extract Case URLs": { "main": [["Split Case URLs"]] },
+    "Split Case URLs": { "main": [["Get Case Detail"]] },
+    "Get Case Detail": { "main": [["Extract Case Number"], ["Extract Title"]] }
+  },
+  "id": "brevard_har_csv_test",
+  "version": 1
+}

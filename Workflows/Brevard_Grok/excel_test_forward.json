@@ -1,0 +1,41 @@
+{
+  "name": "Excel Test - Forward Slashes",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "trigger",
+      "name": "When clicking 'Execute'"
+    },
+    {
+      "parameters": {
+        "jsCode": "const mockData = [\n  { \"Case Number\": \"2026-001\", \"Parcel Number\": \"12345\", \"Case Parties\": \"John Smith\", \"Property Address\": \"123 Main St\", \"Surplus Remaining\": \"$50,000\" }\n];\nreturn mockData.map(item => ({ json: item }));",
+        "functionName": "createMock"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300],
+      "id": "mock",
+      "name": "Create Mock Data"
+    },
+    {
+      "parameters": {
+        "filePath": "D:/share/.vscode/Brevard_With_Eval_Results.xlsx",
+        "operation": "write",
+        "sheetName": "Sheet1",
+        "options": { "firstRowAsHeader": true }
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "id": "excelWrite",
+      "name": "Write Excel"
+    }
+  ],
+  "connections": {
+    "When clicking 'Execute'": { "main": [[{ "node": "Create Mock Data", "type": "main", "index": 0 }]] },
+    "Create Mock Data": { "main": [[{ "node": "Write Excel", "type": "main", "index": 0 }]] }
+  }
+}
